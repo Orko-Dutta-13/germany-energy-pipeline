@@ -1,0 +1,102 @@
+
+x-airflow-common: &airflow-common
+  build: .
+  image: germany-energy-airflow:latest
+  env_file: .env
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+    AIRFLOW__CORE__FERNET_KEY: JgjkgFJ0eIwZH3ZEJ_YNUBBrq_9neAv5e0OuvgMdhms=
+    AIRFLOW__WEBSERVER__SECRET_KEY: germany-energy-secret-2024
+    PYTHONPATH: /opt/airflow/plugins
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./plugins:/opt/airflow/plugins
+    - ./dbt:/opt/airflow/dbt
+    - ./forecasting:/opt/airflow/forecasting
+    - ./data:/opt/airflow/data
+    - airflow-logs:/opt/airflow/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+  networks:
+    - energy-net
+
+services:
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+    ports:
+      - "5432:5432"
+    networks:
+      - energy-net
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com
+        echo "Airflow init complete"
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      - DATABASE_URL=postgresql://airflow:airflow@postgres:5432/airflow
+    depends_on:
+      - postgres
+    networks:
+      - energy-net
+    restart: unless-stopped
+
+volumes:
+  postgres-db:
+  airflow-logs:
+
+networks:
+  energy-net:
+    driver: bridge

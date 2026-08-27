@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Environment
+.env
+*.env
+
+# Airflow
+logs/
+airflow.db
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/.user.yml
+
+# DuckDB
+*.duckdb
+*.duckdb.wal
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+__pycache__/ 
+*.pyc 
+.env 
+logs/ 
+data/ 
+dbt/target/ 
+dbt/dbt_packages/ 

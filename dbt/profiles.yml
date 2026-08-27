@@ -1,0 +1,37 @@
+# profiles.yml
+# ─────────────
+# Tells dbt HOW to connect to the database.
+# This file lives in the dbt/ folder (not ~/.dbt/) so it's
+# version-controlled with the project — good practice for Docker setups.
+#
+# We have two targets:
+#   dev   → used when running dbt locally for testing
+#   prod  → used when Airflow runs dbt inside Docker
+
+germany_energy:
+  target: prod   # default target
+
+  outputs:
+
+    # Local development: run dbt from your laptop pointing at the Docker Postgres
+    dev:
+      type: postgres
+      host: localhost      # Docker exposes Postgres on localhost:5432
+      port: 5432
+      user: airflow
+      password: airflow
+      dbname: airflow
+      schema: analytics    # dbt will create/update tables in this schema
+      threads: 4           # run up to 4 models in parallel
+
+    # Production: runs inside the Airflow Docker network
+    # "postgres" resolves to the postgres container via Docker DNS
+    prod:
+      type: postgres
+      host: postgres       # Docker service name — resolves inside the network
+      port: 5432
+      user: airflow
+      password: airflow
+      dbname: airflow
+      schema: analytics
+      threads: 4

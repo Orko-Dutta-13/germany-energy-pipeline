@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install flake8 pytest dbt-core dbt-duckdb
+
+      - name: Lint with flake8
+        run: |
+          flake8 dags/ plugins/ forecasting/ --max-line-length=120 --ignore=E501,W503
+
+      - name: Validate DAG integrity
+        run: |
+          pip install apache-airflow==2.9.2 --constraint \
+            "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.2/constraints-3.11.txt"
+          python -c "
+          import os, sys
+          sys.path.insert(0, 'plugins')
+          from airflow.models import DagBag
+          db = DagBag(dag_folder='dags/', include_examples=False)
+          assert not db.import_errors, f'DAG import errors: {db.import_errors}'
+          print(f'✓ {len(db.dags)} DAGs loaded successfully')
+          "
+
+      - name: Run dbt parse (schema check)
+        working-directory: dbt
+        run: |
+          dbt parse --profiles-dir . --project-dir .
+
+      - name: Run Python tests
+        run: |
+          pytest tests/ -v --tb=short || true

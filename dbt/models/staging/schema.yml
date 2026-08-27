@@ -1,0 +1,84 @@
+# schema.yml — staging layer
+# ───────────────────────────
+# Defines the data sources dbt reads from, and tests for each staging model.
+# dbt runs these tests with: dbt test --select staging
+#
+# Built-in tests available:
+#   not_null       → column must have no NULLs
+#   unique         → column must have no duplicates
+#   accepted_values → column must only contain values from a given list
+#   relationships  → foreign key check between models
+
+version: 2
+
+# ── Sources: where the raw data comes from ────────────────────────────────────
+sources:
+  - name: raw_energy
+    description: "Raw electricity data ingested from SMARD API by the ingestion DAG"
+    schema: raw_energy   # Postgres schema name
+    tables:
+      - name: generation
+        description: "15-minute generation readings by energy source"
+      - name: consumption
+        description: "15-minute total electricity consumption readings"
+      - name: prices
+        description: "Hourly day-ahead electricity prices in €/MWh"
+
+# ── Staging models and their tests ───────────────────────────────────────────
+models:
+  - name: stg_generation
+    description: "Cleaned generation data — nulls removed, Berlin timezone, source labels added"
+    columns:
+      - name: timestamp_utc
+        description: "Original UTC timestamp of the 15-minute interval"
+        tests:
+          - not_null
+      - name: timestamp_berlin
+        description: "Timestamp converted to Europe/Berlin (CET/CEST)"
+        tests:
+          - not_null
+      - name: source
+        description: "Energy source identifier"
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - wind_offshore
+                - wind_onshore
+                - solar
+                - hydro
+                - biomass
+                - other_renewables
+                - nuclear
+                - lignite
+                - hard_coal
+                - natural_gas
+                - pumped_storage
+                - other_conventional
+      - name: value_mwh
+        description: "Generation in MWh for this 15-minute interval"
+        tests:
+          - not_null
+
+  - name: stg_consumption
+    description: "Cleaned consumption data — nulls and zeros removed, date parts extracted"
+    columns:
+      - name: timestamp_utc
+        tests:
+          - not_null
+      - name: date_berlin
+        tests:
+          - not_null
+      - name: value_mwh
+        tests:
+          - not_null
+
+  - name: stg_prices
+    description: "Cleaned day-ahead prices — nulls removed, negative price flag added"
+    columns:
+      - name: timestamp_utc
+        tests:
+          - not_null
+      - name: price_eur_mwh
+        tests:
+          - not_null

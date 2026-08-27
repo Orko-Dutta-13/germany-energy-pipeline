@@ -1,0 +1,53 @@
+# schema.yml — marts layer
+# ─────────────────────────
+version: 2
+
+models:
+  - name: mart_generation_by_source
+    description: "Daily generation totals by energy source with renewable flag and % share"
+    columns:
+      - name: date_berlin
+        description: "Calendar date in Berlin timezone"
+        tests:
+          - not_null
+      - name: source
+        description: "Energy source key"
+        tests:
+          - not_null
+      - name: total_mwh
+        description: "Total MWh generated from this source on this day"
+        tests:
+          - not_null
+      - name: pct_of_daily_generation
+        description: "This source's share of total daily generation (0–100)"
+        tests:
+          - not_null
+
+  - name: mart_daily_demand
+    description: "Daily electricity demand with peak, min, load factor — input for forecasting"
+    columns:
+      - name: date_berlin
+        description: "Calendar date in Berlin timezone"
+        tests:
+          - not_null
+          - unique        # one row per day only
+      - name: total_mwh
+        description: "Total electricity consumed on this day"
+        tests:
+          - not_null
+      - name: is_incomplete_day
+        description: "True if fewer than 24 hours of data — exclude from forecasting"
+        tests:
+          - not_null
+
+  - name: mart_renewable_share
+    description: "Daily renewable energy share — the Energiewende KPI"
+    columns:
+      - name: date_berlin
+        tests:
+          - not_null
+          - unique
+      - name: renewable_pct
+        description: "Renewable share of total generation (0–100)"
+        tests:
+          - not_null

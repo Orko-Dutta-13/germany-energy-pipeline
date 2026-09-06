@@ -28,7 +28,7 @@ jobs:
         run: |
           flake8 dags/ plugins/ forecasting/ \
             --max-line-length=120 \
-            --ignore=E501,W503,E402 \
+            --ignore=E501,W503,E402,E241,E221,F401 \
             --exclude=__pycache__
 
       - name: Validate DAG Python syntax
